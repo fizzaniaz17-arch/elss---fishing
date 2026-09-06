@@ -3,7 +3,30 @@ const now = () => new Date().toISOString();
 const date = new Date().toISOString().slice(0, 10);
 let state = JSON.parse(localStorage.getItem(KEY) || 'null') || { page: 'Dashboard', seq: 1, vessel: { name: 'FV Ocean Guardian', rss: 'A12345', trip: 'TRIP-2026-001', status: 'AT SEA', lat: '50.1234', lon: '-1.2345' }, reports: [{ id: 'ELSS-000125', type: 'FAR', species: 'Cod', quantity: '500', location: '50.1234 N, 1.2345 W', gear: 'Trawl', date, filename: 'A1234520260907000001.xml', status: 'ACKNOWLEDGED', ack: 'SUCCESS', created: now(), user: 'MASTER001' }], unmatched: [], events: [{ time: now(), action: 'Acknowledgement received', report: 'ELSS-000125', status: 'SUCCESS' }], clock: '23:45', fish: true, landing: false, encryption: true };
 
-function save() { localStorage.setItem(KEY, JSON.stringify(state)) }
+let saveTimer;
+
+function save() {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => fetch('/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) }).catch(() => toast('Backend unavailable; local copy retained')), 80);
+}
+
+async function boot() {
+    try {
+        const response = await fetch('/api/state');
+        if (!response.ok) throw new Error('Database unavailable');
+        const remote = await response.json();
+        state = {...state, ...remote, page: state.page };
+        localStorage.setItem(KEY, JSON.stringify(state));
+    } catch { toast('Using local fallback while backend reconnects'); }
+    layout();
+}
+
+async function resetDemo() {
+    await fetch('/api/reset', { method: 'POST' });
+    localStorage.removeItem(KEY);
+    location.reload();
+}
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 
@@ -56,4 +79,4 @@ function vessel(v){v.innerHTML=`<div class="card"><h2>Vessel & crew</h2><div cla
 function attemptPartialCorrection() { log('Partial correction rejected', state.reports[0]?.id || 'TEST', 'REJECTED'); toast('Correction rejected: complete report must be transmitted.'); }
 const renderTestMode = testMode;
 testMode = function(v) { renderTestMode(v); const actions = v.querySelector('.card .actions'); if (actions) actions.insertAdjacentHTML('beforeend', '<button class="btn secondary" onclick="attemptPartialCorrection()">Attempt partial correction</button>'); };
-function audit(v){v.innerHTML=`<div class="card"><h2>Audit / activity</h2><table><thead><tr><th>UTC timestamp</th><th>User</th><th>Action</th><th>Report</th><th>Status</th></tr></thead><tbody>${state.events.map(e=>`<tr><td>${e.time.slice(0,19).replace('T',' ')} UTC</td><td>MASTER001</td><td>${esc(e.action)}</td><td>${e.report}</td><td>${e.status}</td></tr>`).join('')}</tbody></table></div>`} function traceability(v){const rows=[['Capture-002','Manual Report Entry','TC-CAP-002'],['Transmission-002','GBRRN Filename Generator','TC-TRANS-002'],['Transmission-005','Transmission Centre','TC-TRANS-005'],['Acknowledgement-001','ACK Correlation','TC-ACK-001'],['Acknowledgement-002','ACK Result Display','TC-ACK-002'],['Correction-001','Full Report Correction','TC-COR-001'],['Frequency-001','Daily Transmission Simulator','TC-FREQ-001'],['Capture-006','UTC Service','TC-CAP-006'],['Capture-005','English UK UI','TC-CAP-005'],['Transmission-003','PGP Encryption Simulation','TC-TRANS-003']];v.innerHTML=`<div class="card"><h2>Requirement traceability</h2><p class="muted">Academic prototype coverage for the ten selected requirements.</p><table><thead><tr><th>Requirement</th><th>Implemented feature</th><th>Test case</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="badge green">PASS</span></td></tr>`).join('')}</tbody></table></div>`} function settings(v){v.innerHTML=`<div class="card"><h2>Settings</h2><p><b>Locale:</b> English (UK)</p><p><b>Time standard:</b> UTC</p><p><b>Encryption:</b> PGP simulation enabled · DEMO / TEST KEY</p><button class="btn danger" onclick="localStorage.removeItem(KEY);location.reload()">Reset demo data</button></div>`} layout();
+function audit(v){v.innerHTML=`<div class="card"><h2>Audit / activity</h2><table><thead><tr><th>UTC timestamp</th><th>User</th><th>Action</th><th>Report</th><th>Status</th></tr></thead><tbody>${state.events.map(e=>`<tr><td>${e.time.slice(0,19).replace('T',' ')} UTC</td><td>MASTER001</td><td>${esc(e.action)}</td><td>${e.report}</td><td>${e.status}</td></tr>`).join('')}</tbody></table></div>`} function traceability(v){const rows=[['Capture-002','Manual Report Entry','TC-CAP-002'],['Transmission-002','GBRRN Filename Generator','TC-TRANS-002'],['Transmission-005','Transmission Centre','TC-TRANS-005'],['Acknowledgement-001','ACK Correlation','TC-ACK-001'],['Acknowledgement-002','ACK Result Display','TC-ACK-002'],['Correction-001','Full Report Correction','TC-COR-001'],['Frequency-001','Daily Transmission Simulator','TC-FREQ-001'],['Capture-006','UTC Service','TC-CAP-006'],['Capture-005','English UK UI','TC-CAP-005'],['Transmission-003','PGP Encryption Simulation','TC-TRANS-003']];v.innerHTML=`<div class="card"><h2>Requirement traceability</h2><p class="muted">Academic prototype coverage for the ten selected requirements.</p><table><thead><tr><th>Requirement</th><th>Implemented feature</th><th>Test case</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="badge green">PASS</span></td></tr>`).join('')}</tbody></table></div>`} function settings(v){v.innerHTML=`<div class="card"><h2>Settings</h2><p><b>Locale:</b> English (UK)</p><p><b>Time standard:</b> UTC</p><p><b>Database:</b> Backend JSON database · <span class="badge green">PERSISTED</span></p><p><b>Encryption:</b> PGP simulation enabled · DEMO / TEST KEY</p><button class="btn danger" onclick="resetDemo()">Reset demo data</button></div>`} boot();

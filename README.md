@@ -10,7 +10,7 @@ Requires Node.js 18+. From this folder:
 npm start
 ```
 
-Open http://localhost:3000. Demo user: `MASTER001` (Master). Data is stored in browser localStorage; use Settings to reset it. Tests run with `npm test` (the prototype is intentionally dependency-free).
+Open http://localhost:3000. Demo user: `MASTER001` (Master). The backend creates and persists `data/elss.json` automatically; use Settings to reset it. Tests run with `npm test` (the prototype is intentionally dependency-free).
 
 ## Demonstration
 
@@ -18,4 +18,4 @@ Use Create Report to capture FAR/TRA/LAN data, view the generated GBRRN filename
 
 ## Architecture and assumptions
 
-`server.js` serves the responsive single-page UI. `public/app.js` contains the separated demo services for validation, UTC timestamps, GBRRN/XML generation, encryption/transmission simulation, acknowledgement correlation, correction workflow, frequency rules, and audit events. `public/styles.css` provides the maritime operational UI. SQLite/Prisma and external ERS integration are intentionally omitted to keep local setup zero-configuration; browser storage is the demo persistence layer. This is not a production regulatory system.
+`server.js` provides the backend and serves the responsive single-page UI. It exposes `GET /api/health`, `GET /api/state`, `PUT /api/state`, `GET/POST /api/reports`, `DELETE /api/reports/:id`, and `POST /api/reset`. `data/elss.json` is the local persistent database and is created on first start. `public/app.js` contains the client workflows for validation, UTC timestamps, GBRRN/XML generation, encryption/transmission simulation, acknowledgement correlation, correction workflow, frequency rules, and audit events. `public/styles.css` provides the maritime operational UI. SQLite/Prisma and external ERS integration are intentionally omitted to keep local setup zero-configuration; the JSON database is the persistence layer for this academic prototype. This is not a production regulatory system.

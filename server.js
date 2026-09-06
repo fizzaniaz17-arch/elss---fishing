@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, 'public');
 const databasePath = path.join(__dirname, 'data', 'elss.json');
+const users = { MASTER001: { password: 'master123', role: 'Master' }, CREW001: { password: 'crew123', role: 'Crew' }, OWNER001: { password: 'owner123', role: 'Vessel Owner' } };
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json' };
 const initialState = () => {
     const timestamp = new Date().toISOString();
@@ -64,6 +65,12 @@ http.createServer(async(req, res) => {
         try {
             if (req.method === 'OPTIONS') return json(res, 204, {});
             if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { ok: true, database: 'json-file', path: 'data/elss.json' });
+            if (req.method === 'POST' && url.pathname === '/api/login') {
+                const credentials = await body(req);
+                const user = users[String(credentials.userId || '').toUpperCase()];
+                if (!user || user.password !== credentials.password) return json(res, 401, { error: 'Invalid user ID or password.' });
+                return json(res, 200, { userId: String(credentials.userId).toUpperCase(), role: user.role, token: `demo-${Date.now()}` });
+            }
             if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, readDatabase());
             if (req.method === 'PUT' && url.pathname === '/api/state') return json(res, 200, writeDatabase(await body(req)));
             if (req.method === 'POST' && url.pathname === '/api/reset') return json(res, 200, writeDatabase(initialState()));
@@ -79,6 +86,19 @@ http.createServer(async(req, res) => {
                 const state = readDatabase();
                 state.reports = state.reports.filter(report => report.id !== id);
                 return json(res, 200, writeDatabase(state));
+            }
+            if (req.method === 'POST' && url.pathname === '/api/email') {
+                const request = await body(req);
+                const state = readDatabase();
+                const report = state.reports.find(item => item.id === request.reportId);
+                if (!report) return json(res, 404, { error: 'Report was not found.' });
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(request.recipient || '')) return json(res, 400, { error: 'Enter a valid recipient email address.' });
+                state.emails = state.emails || [];
+                const email = { id: `EMAIL-${String(state.emails.length + 1).padStart(6, '0')}`, reportId: report.id, recipient: request.recipient, subject: `ELSS report ${report.id}`, attachment: report.filename, encrypted: true, status: 'SIMULATED_SENT', sentAt: new Date().toISOString(), userId: request.userId || 'MASTER001' };
+                state.emails.unshift(email);
+                state.events.unshift({ time: email.sentAt, action: 'Simulated email sent', report: report.id, status: 'SUCCESS' });
+                writeDatabase(state);
+                return json(res, 201, email);
             }
             return json(res, 404, { error: 'API route not found' });
         } catch (error) { return json(res, 400, { error: error.message }); }

@@ -30,6 +30,49 @@ textarea {
     font: inherit
 }
 
+.login-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: linear-gradient(135deg, #08243b, #087ea4)
+}
+
+.login-card {
+    width: min(430px, 100%);
+    background: #fff;
+    padding: 34px;
+    border-radius: 8px;
+    box-shadow: 0 18px 55px #02152266
+}
+
+.login-brand {
+    margin: 0 0 28px;
+    color: var(--navy)
+}
+
+.login-card h1 {
+    font-size: 27px;
+    margin: 8px 0
+}
+
+.login-card form {
+    display: grid;
+    gap: 15px;
+    margin-top: 24px
+}
+
+.login-button {
+    width: 100%;
+    font-weight: bold
+}
+
+.login-help {
+    font: 11px Arial, sans-serif;
+    color: var(--muted);
+    margin: 0
+}
+
 button {
     cursor: pointer
 }

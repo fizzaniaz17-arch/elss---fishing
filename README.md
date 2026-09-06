@@ -10,11 +10,11 @@ Requires Node.js 18+. From this folder:
 npm start
 ```
 
-Open http://localhost:3000. Demo user: `MASTER001` (Master). The backend creates and persists `data/elss.json` automatically; use Settings to reset it. Tests run with `npm test` (the prototype is intentionally dependency-free).
+Open http://localhost:3000. Sign in with `MASTER001` / `master123` (Master), `CREW001` / `crew123` (Crew), or `OWNER001` / `owner123` (Vessel Owner). The backend creates and persists `data/elss.json` automatically; use Settings to reset it. Tests run with `npm test` (the prototype is intentionally dependency-free).
 
 ## Demonstration
 
-Use Create Report to capture FAR/TRA/LAN data, view the generated GBRRN filename and XML, then send it from the report or Transmission Centre. The Electronic Logbook page supports create, read, edit, and delete actions. A simulated success acknowledgement is correlated automatically. Test Mode exposes failed, negative, unmatched-acknowledgement, partial-correction rejection, frequency, correction, and DEMO/TEST-key encryption scenarios. Corrections copy the full original report and are marked COR. Requirement Traceability maps all ten selected requirements to visible features and test IDs.
+Use Create Report to capture FAR/TRA/LAN data, view the generated GBRRN filename and XML, then send it from the report or Transmission Centre. Report details include `Send XML by email`; enter a recipient address to create a simulated encrypted email outbox record. No real email or regulatory endpoint is contacted. The Electronic Logbook page supports create, read, edit, and delete actions. A simulated success acknowledgement is correlated automatically. Test Mode exposes failed, negative, unmatched-acknowledgement, partial-correction rejection, frequency, correction, and DEMO/TEST-key encryption scenarios. Corrections copy the full original report and are marked COR. Requirement Traceability maps all ten selected requirements to visible features and test IDs.
 
 ## Architecture and assumptions
 

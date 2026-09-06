@@ -1,2 +1,3 @@
 data/elss.json
 node_modules/
+.env

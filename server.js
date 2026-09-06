@@ -52,13 +52,22 @@ function body(req) {
 
 function xmlFor(report, vessel) { const escape = value => String(value == null ? '' : value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[character])); return `<ELSSReport operation="${escape(report.operation || 'DAT')}" reportId="${escape(report.id)}"><Vessel><Name>${escape(vessel.name)}</Name><RSSNumber>${escape(vessel.rss)}</RSSNumber><TripID>${escape(vessel.trip)}</TripID></Vessel><FishingActivity><Date>${escape(report.date)}</Date><UTCTime>${escape(report.utc)}</UTCTime><Location latitude="${escape(report.lat)}" longitude="${escape(report.lon)}"/><Species>${escape(report.species)}</Species><Quantity unit="kg">${escape(report.quantity)}</Quantity><Gear>${escape(report.gear)}</Gear><LandingPort>${escape(report.port)}</LandingPort></FishingActivity><Notes>${escape(report.notes)}</Notes></ELSSReport>`; }
 
-function sendResend(email, xml) { return new Promise((resolve, reject) => { const payload = JSON.stringify({ from: process.env.RESEND_FROM, to: [email.recipient], subject: email.subject, html: `<p>ELSS report ${email.reportId} from ${email.vessel}.</p><p>Demo/test transmission. No regulatory production system was contacted.</p>`, attachments: [{ filename: email.attachment, content: Buffer.from(xml).toString('base64') }] }); const request = https.request({ hostname: 'api.resend.com', path: '/emails', method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } }, response => { let result = '';
+function sendResend(email, xml) {
+    return new Promise((resolve, reject) => {
+        const payload = JSON.stringify({ from: process.env.RESEND_FROM, to: [email.recipient], subject: email.subject, html: `<p>ELSS report ${email.reportId} from ${email.vessel}.</p><p>Demo/test transmission. No regulatory production system was contacted.</p>`, attachments: [{ filename: email.attachment, content: Buffer.from(xml).toString('base64') }] });
+        const request = https.request({ hostname: 'api.resend.com', path: '/emails', method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } }, response => {
+            let result = '';
             response.on('data', chunk => result += chunk);
-            response.on('end', () => { if (response.statusCode >= 200 && response.statusCode < 300) resolve(JSON.parse(result));
-                else reject(new Error(`Resend rejected the email (${response.statusCode}).`)); }); });
+            response.on('end', () => {
+                if (response.statusCode >= 200 && response.statusCode < 300) resolve(JSON.parse(result));
+                else reject(new Error(`Resend rejected the email (${response.statusCode}).`));
+            });
+        });
         request.on('error', reject);
         request.write(payload);
-        request.end(); }); }
+        request.end();
+    });
+}
 
 function sendAsset(req, res) {
     const requested = new URL(req.url, 'http://localhost').pathname;
@@ -106,12 +115,15 @@ http.createServer(async(req, res) => {
                 const state = readDatabase();
                 const report = state.reports.find(item => item.id === request.reportId);
                 if (!report) return json(res, 404, { error: 'Report was not found.' });
-                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(request.recipient || '')) return json(res, 400, { error: 'Enter a valid recipient email address.' });
+                const recipient = request.recipient || process.env.DEFAULT_EMAIL_TO || 'fizzaniaz.17@gmail.com';
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) return json(res, 400, { error: 'Enter a valid recipient email address.' });
                 state.emails = state.emails || [];
-                const email = { id: `EMAIL-${String(state.emails.length + 1).padStart(6, '0')}`, reportId: report.id, recipient: request.recipient, subject: `ELSS report ${report.id}`, attachment: report.filename, encrypted: true, status: 'PENDING', sentAt: new Date().toISOString(), userId: request.userId || 'MASTER001', vessel: state.vessel.name };
+                const email = { id: `EMAIL-${String(state.emails.length + 1).padStart(6, '0')}`, reportId: report.id, recipient, subject: `ELSS report ${report.id}`, attachment: report.filename, encrypted: true, status: 'PENDING', sentAt: new Date().toISOString(), userId: request.userId || 'MASTER001', vessel: state.vessel.name };
                 const xml = xmlFor(report, state.vessel);
-                if (process.env.RESEND_API_KEY && process.env.RESEND_FROM) { await sendResend(email, xml);
-                    email.status = 'SENT'; } else { email.status = 'SIMULATED_SENT'; }
+                if (process.env.RESEND_API_KEY && process.env.RESEND_FROM) {
+                    await sendResend(email, xml);
+                    email.status = 'SENT';
+                } else { email.status = 'SIMULATED_SENT'; }
                 state.emails.unshift(email);
                 state.events.unshift({ time: email.sentAt, action: 'Simulated email sent', report: report.id, status: 'SUCCESS' });
                 writeDatabase(state);
